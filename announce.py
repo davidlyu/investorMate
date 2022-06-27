@@ -8,7 +8,7 @@ import json
 import re
 from urllib.parse import urljoin
 import requests
-from PyQt6.QtWidgets import (QApplication, QWidget, QLabel,
+from PyQt6.QtWidgets import (QApplication, QTextBrowser, QWidget, QLabel,
         QProgressBar, QLineEdit, QPushButton, QTextEdit, 
         QComboBox, QFileDialog, QGridLayout)
 from PyQt6.QtCore import pyqtSignal, QThread, QEvent
@@ -99,7 +99,9 @@ class MainWindow(QWidget):
 
         # Text edit is for displaying the file names as they
         # are updated
-        self.announcement_tedit = QTextEdit()
+        self.announcement_tedit = QTextBrowser()
+        self.announcement_tedit.setOpenLinks(True)
+        self.announcement_tedit.setOpenExternalLinks(True)
         self.announcement_tedit.setReadOnly(True)
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
@@ -191,11 +193,13 @@ class MainWindow(QWidget):
             url = "http://www.cninfo.com.cn/new/hisAnnouncement/query"
             response = requests.post(url, data=post_data)
             response_obj = json.loads(response.text)
-            announcements = ""
+            announcement = ""
             for ann in response_obj["announcements"]:
-                announcements = announcements + ann["announcementTitle"] + "\n"
+                announcement = announcement + ann["announcementTitle"] + "\n"
                 ann["ann_dl_url"] = urljoin("http://static.cninfo.com.cn", ann["adjunctUrl"])
-            self.announcement_tedit.setText(announcements)
+                url = ann["ann_dl_url"]
+                announcement = f'<a href="{url}">{announcement}</a><p>'
+            self.announcement_tedit.insertHtml(announcement)
             self.stop_button.setEnabled(True)
         self.response_obj = response_obj
 
