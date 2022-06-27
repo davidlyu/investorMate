@@ -11,7 +11,7 @@ import requests
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel,
         QProgressBar, QLineEdit, QPushButton, QTextEdit, 
         QComboBox, QFileDialog, QGridLayout)
-from PyQt6.QtCore import pyqtSignal, QThread
+from PyQt6.QtCore import pyqtSignal, QThread, QEvent
 
 
 style_sheet = """
@@ -88,17 +88,19 @@ class MainWindow(QWidget):
 
     def setUpMainWindow(self):
         code_label = QLabel( """<p>输入股票名称:</p>""")
-        self.symbol_edit = QLineEdit()
-        self.symbol_edit.setPlaceholderText("代码/名称")
-        self.symbol_edit.textChanged.connect(self.updateTextEdit)
+        self.symbol_edit = QComboBox()
+        self.symbol_edit.setPlaceholderText("代码/简称/关键字/高管")
+        self.symbol_edit.setEditable(True)
+        self.symbol_edit.editTextChanged.connect(self.update_symbol_edit)
+        self.symbol_edit.activated.connect(self.update_announcement_tedit)
 
         self.choose_dir_button = QPushButton("选择位置")
         self.choose_dir_button.clicked.connect(self.chooseDirectory)
 
         # Text edit is for displaying the file names as they
         # are updated
-        self.display_announcement_tedit = QTextEdit()
-        self.display_announcement_tedit.setReadOnly(True)
+        self.announcement_tedit = QTextEdit()
+        self.announcement_tedit.setReadOnly(True)
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         self.stop_button = QPushButton("下载")
@@ -111,13 +113,45 @@ class MainWindow(QWidget):
         grid.addWidget(code_label, 0, 0)
         grid.addWidget(self.symbol_edit, 1, 0)
         grid.addWidget(self.choose_dir_button, 1, 1)
-        grid.addWidget(self.display_announcement_tedit, 2, 0, 1, 2)
+        grid.addWidget(self.announcement_tedit, 2, 0, 1, 2)
         grid.addWidget(self.progress_bar, 3, 0, 1, 1)
         grid.addWidget(self.stop_button, 3, 1)
         grid.addWidget(self.progress_label, 4, 0, 1, 2)
         self.setLayout(grid)
 
-    def updateTextEdit(self, input_str):
+    def update_symbol_edit(self, input_str):
+        """
+        根据input_str, 更新combobox的items
+        """
+        url = f"http://www.cninfo.com.cn/new/information/topSearch/query?keyWord={input_str}&maxNum=10"
+        response = requests.post(url)
+        json_obj = json.loads(response.text)
+
+        if len(json_obj) > 1:
+            self.symbol_edit.clear()
+            self.announcement_tedit.setText("")
+            for obj in json_obj:
+                stock_code = obj["code"]
+                stock_name = obj["zwjc"]
+                category = obj["category"]
+                item = f"{stock_code}\t{category}\t{stock_name}"
+                self.symbol_edit.addItem(item)
+        elif len(json_obj) == 1:
+            self.symbol_edit.clear()
+            stock_name = json_obj[0]["zwjc"]
+            stock_code = json_obj[0]["code"]
+            category = json_obj[0]["category"]
+            item = f"{stock_code}\t{category}\t{stock_name}"
+            self.symbol_edit.addItem(item)
+            self.update_announcement(stock_name)
+
+    def update_announcement_tedit(self):
+        text = self.symbol_edit.currentText()
+        stock_name = text.split("\t")[2]
+        self.symbol_edit.clear()
+        self.update_announcement(stock_name)
+
+    def update_announcement(self, input_str):
         """
         获取org_id, code
         """
@@ -161,7 +195,7 @@ class MainWindow(QWidget):
             for ann in response_obj["announcements"]:
                 announcements = announcements + ann["announcementTitle"] + "\n"
                 ann["ann_dl_url"] = urljoin("http://static.cninfo.com.cn", ann["adjunctUrl"])
-            self.display_announcement_tedit.setText(announcements)
+            self.announcement_tedit.setText(announcements)
             self.stop_button.setEnabled(True)
         self.response_obj = response_obj
 
