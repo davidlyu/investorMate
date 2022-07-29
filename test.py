@@ -1,8 +1,9 @@
 import sys
-from PyQt6.QtWidgets import (QWidget, QLineEdit, QListWidget,
-        QTextEdit, QVBoxLayout, QApplication,
-        QDockWidget, QMainWindow)
+from PyQt6.QtWidgets import (
+    QWidget, QLineEdit, QListWidget,QTextEdit, QVBoxLayout, 
+    QApplication, QDockWidget, QMainWindow, QStyle, QStyleOption)
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint
+from PyQt6.QtGui import QPainter
 import stockapi
 
 
@@ -21,7 +22,6 @@ class StockSearchWidget(QLineEdit):
         self.initializeUI()
 
         self.complete.connect(lambda x: print(f"{x} emit"))
-
 
     def initializeUI(self):
         self.setPlaceholderText("代码/简称/关键字")

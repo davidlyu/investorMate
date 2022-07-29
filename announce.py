@@ -80,6 +80,10 @@ style_sheet = """
         height: 16px;
         border-radius: 8px;
     }
+
+    StockSearchWidget#StockSearch{
+        width: 100px;
+    }
 """
 
 
@@ -610,9 +614,11 @@ class MainWindow(QWidget):
         close_btn = QPushButton("")
         close_btn.setObjectName("CloseButton")
 
-        # title_bar_box.addStretch()
-        title_bar_box.addWidget(StockSearchWidget())
+        self.stock_search_widget = StockSearchWidget()
+        self.stock_search_widget.setFixedWidth(250)
+        title_bar_box.addWidget(self.stock_search_widget)
         title_bar_box.addWidget(title_label)
+        title_bar_box.addStretch()
         title_bar_box.addWidget(minimize_btn)
         title_bar_box.addWidget(maximize_btn)
         title_bar_box.addWidget(close_btn)
