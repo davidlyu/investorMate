@@ -1,17 +1,30 @@
 """
 announce.py
 """
+from ctypes import resize
 import os
 import sys
 import time
 import json
 import re
 from urllib.parse import urljoin
+from venv import create
+import webbrowser
+# from jmespath import search
 import requests
-from PyQt6.QtWidgets import (QApplication, QTextBrowser, QWidget, QLabel,
-        QProgressBar, QLineEdit, QPushButton, QTextEdit, 
-        QComboBox, QFileDialog, QGridLayout)
-from PyQt6.QtCore import pyqtSignal, QThread, QEvent
+from PyQt6.QtWidgets import (QApplication, QStackedWidget, QTableWidget, QTextBrowser, QVBoxLayout, QWidget, QLabel,
+        QProgressBar, QLineEdit, QPushButton, QTextEdit, QStackedLayout, QRadioButton, QTableWidgetItem,
+        QComboBox, QFileDialog, QGridLayout, QListWidget, QListWidgetItem, QHBoxLayout, QAbstractItemView,
+        QMenu)
+from PyQt6.QtCore import pyqtSignal, QThread, QPoint, Qt
+from PyQt6.QtGui import QFont, QAction, QColor
+import stockapi
+import createdb
+from test import StockSearchWidget
+
+# 参数
+STOCK_UPDATE_INTERVAL = 10
+announcement_db = createdb.AnnouncementDatabase()
 
 
 style_sheet = """
@@ -29,12 +42,52 @@ style_sheet = """
             width: 5px;
             margin: 0.5px;
             }
+
+    QListWidget#sel{
+            outline: 0px;
+            border: 0px;
+            min-width: 120px;
+            color: Black;
+            background: #F5F5F5;
+            }
+
+    QListWidget#sel::Item{
+            height: 30px;
+            }
+
+    QListWidget#sel::Item:selected{
+            background: rgb(49, 194, 124);
+            border-radius: 1.5px;
+            }
+
+    QPushButton#MinimizeButton{
+        background-color: #15cd36;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+    }
+
+    QPushButton#MaximizeButton{
+        background-color: #ffbd05;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+    }
+
+    QPushButton#CloseButton{
+        background-color: #ff6054;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+    }
 """
 
 
 class DownloadWorker(QThread):
-    """Create worker thead for running tasks like updating
-    the prograss bar, download stock announcements"""
+    """
+    Create worker thead for running tasks like updating
+    the prograss bar, download stock announcements
+    """
     update_value_signal = pyqtSignal(int)
     update_str_signal = pyqtSignal(str)
 
@@ -71,14 +124,470 @@ class DownloadWorker(QThread):
         self.stopRunning()
 
 
-class MainWindow(QWidget):
+class UpdateStockWorker(QThread):
+    """
+    Create worker thread for updating stock data
+    """
+    stock_data_ready_signal = pyqtSignal(object)
+
+    def __init__(self, codes):
+        super().__init__()
+        self.codes = codes
+
+        self.start_update = False
+
+    def stopRunning(self):
+        self.stop_update = False
+        self.terminate()
+        self.wait()
+
+    def run(self):
+        interval = STOCK_UPDATE_INTERVAL
+        self.start_update = True
+
+        while self.start_update:
+            stocks_data = []
+            for code in self.codes:
+                data = stockapi.get_market_data(code)
+                if data != {}:
+                    stocks_data.append(data)
+            self.stock_data_ready_signal.emit(stocks_data)
+            time.sleep(interval)
+
+
+class DownloadReportWidget(QWidget):
+    """下载指定股票定期报告界面"""
     def __init__(self):
         super().__init__()
         self.initializeUI()
 
     def initializeUI(self):
-        self.setMinimumSize(600, 500)
+        """initialize ui"""
+        self.setUpMainWindow()
+
+    def setUpMainWindow(self):
+        """set up mainwindow"""
+        code_label = QLabel( """<p>输入股票名称:</p>""")
+
+        self.announcement_tedit = QTextBrowser()
+        self.announcement_tedit.setOpenLinks(True)
+        self.announcement_tedit.setOpenExternalLinks(True)
+        self.announcement_tedit.setReadOnly(True)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setValue(0)
+
+        self.progress_label = QLabel()
+
+        self.stop_button = QPushButton("下载")
+        self.stop_button.setEnabled(False)
+        # self.stop_button.clicked.connect(self.download_announcements)
+
+        search = StockSearchWidget()
+        search.complete.connect(self.update_announcement_tedit)
+        # Create layout and arrange widgets
+        grid = QGridLayout()
+        grid.addWidget(code_label, 0, 0)
+        grid.addWidget(search, 1, 0, 1, 2)
+        grid.addWidget(self.announcement_tedit, 2, 0, 1, 2)
+        grid.addWidget(self.progress_bar, 3, 0)
+        grid.addWidget(self.stop_button, 3, 1)
+        grid.addWidget(self.progress_label, 4, 0)
+        self.setLayout(grid)
+
+    def update_announcement_tedit(self, stock_info):
+        """
+        update announcements tedit
+        """
+        code = stock_info.split(" ")[0]
+        self.symbol_edit.clear()
+
+        announcements = stockapi.get_latest_announcement(code)
+        html = ""
+        for ann in announcements:
+            url = ann["AnnouncementUrl"]
+            title = ann["AnnouncementTitle"]
+            name = ann["Name"]
+            html = html + f'<a href="{url}">{name}: {title}</a><p>'
+        self.announcement_tedit.insertHtml(html)
+        self.stop_button.setEnabled(True)
+
+
+class SelectedStocksWidget(QWidget):
+    """自选股页面"""
+    def __init__(self, selected_stocks):
+        super().__init__()
+        self.selected_stocks = selected_stocks
+        update_stock_worker = UpdateStockWorker(self.selected_stocks)
+        update_stock_worker.start()
+        update_stock_worker.stock_data_ready_signal.connect(self.display_stock_data)
+        self.initializeUI()
+
+    def initializeUI(self):
+        """initialize ui"""
+        self.setUpMainWindow()
+        # self.display_stock_data()
+
+    def setUpMainWindow(self):
+        """set up main window"""
+        self.stocks_table = QTableWidget()
+        self.stocks_table.setColumnCount(8)
+        self.stocks_table.setRowCount(len(self.selected_stocks))
+        self.stocks_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.stocks_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        header_labels = ["名称", "代码", "最新", "涨幅", "涨跌", "市盈TTM", "市净", "总市值"]
+        self.stocks_table.setHorizontalHeaderLabels(header_labels)
+
+        add_label = QLabel("添加自选股")
+        self.search_widget = StockSearchWidget()
+        self.search_widget.complete.connect(self.add_stocks)
+
+        # Create layout and arrange widgets
+        box = QVBoxLayout()
+        box.addWidget(self.stocks_table)
+
+        hbox = QHBoxLayout()
+        hbox.addWidget(add_label)
+        hbox.addWidget(self.search_widget)
+
+        box.addLayout(hbox)
+        self.setLayout(box)
+
+    def add_stocks(self, stock_info):
+        # print(stock_info)
+        # print(stock_info.split())
+        split = stock_info.split()
+        code = split[0]
+        category = split[1]
+        name = split[2]
+        # code, category, name = stock_info.split(" ")
+        announcement_db.insert_stock(code, name, category)
+        self.display_stock_data()
+
+    def contextMenuEvent(self, event):
+        delete_action = QAction("删除", self)
+
+        context_menu = QMenu(self)
+        context_menu.addAction(delete_action)
+
+        action = context_menu.exec(self.mapToGlobal(event.pos()))
+
+        if action == delete_action:
+            # 因为每一行所有的 item 拥有相同的 row，所以 rows 中的列表有重复项，因此需要去重
+            rows = [item.row() for item in self.stocks_table.selectedItems()]
+            rows = list(set(rows))
+            print(rows)
+
+            for row in rows:
+                code = self.stocks_table.item(row, 1).text()
+                print(code)
+                announcement_db.delete_stock(code)
+
+        self.display_stock_data()
+
+    def display_stock_data(self, stocks_data):
+        print("yes")
+        self.stocks_table.setRowCount(0)
+        self.stocks_table.clearContents()
+
+        self.stocks_table.setRowCount(len(stocks_data))
+
+        for i, data in enumerate(stocks_data):
+            change_rate = float(data["ChangeRate"])
+            if change_rate > 0:
+                color = QColor("#ff4343")
+            else:
+                color = QColor("#07a168")
+
+            item = QTableWidgetItem(data["Name"])
+            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            item.setForeground(color)
+            self.stocks_table.setItem(i, 0, item)
+
+            item = QTableWidgetItem(data["Code"])
+            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            item.setForeground(color)
+            self.stocks_table.setItem(i, 1, item)
+
+            latest_price = float(data["LatestPrice"])
+            item = QTableWidgetItem(f"{latest_price:.2f}")
+            item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item.setForeground(color)
+            self.stocks_table.setItem(i, 2, item)
+
+            item = QTableWidgetItem(f"{change_rate:.2f}%")
+            item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item.setForeground(color)
+            self.stocks_table.setItem(i, 3, item)
+
+            change_amount = float(data["ChangeAmount"])
+            item = QTableWidgetItem(f"{change_amount:.2f}")
+            item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item.setForeground(color)
+            self.stocks_table.setItem(i, 4, item)
+
+            pe_ttm = float(data["PETTM"])
+            item = QTableWidgetItem(f"{pe_ttm:.1f}")
+            item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item.setForeground(color)
+            self.stocks_table.setItem(i, 5, item)
+
+            pb = float(data["PB"])
+            item = QTableWidgetItem(f"{pb:.1f}")
+            item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item.setForeground(color)
+            self.stocks_table.setItem(i, 6, item)
+
+            market_value = float(data["MarketValue"])
+            item = QTableWidgetItem(f"{market_value:.0f}亿")
+            item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item.setForeground(color)
+            self.stocks_table.setItem(i, 7, item)
+
+
+class LatestAnnouncementWidget(QWidget):
+    """获取多只股票的最新公告的界面"""
+    def __init__(self, selected_stocks):
+        super().__init__()
+        self.selected_stocks = selected_stocks
+        self.initializeUI()
+
+    def initializeUI(self):
+        """initialize ui"""
+        self.setUpMainWindow()
+        self.create_actions()
+
+    def setUpMainWindow(self):
+        """set up main window"""
+        self.announcements_table = QTableWidget()
+        self.announcements_table.setColumnCount(2)
+        self.announcements_table.setColumnWidth(0, 800)
+        self.announcements_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.announcements_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.announcements_table.setHorizontalHeaderLabels(["公告标题", "公告时间"])
+        self.announcements_table.itemClicked.connect(self.read)
+        self.announcements_table.itemDoubleClicked.connect(self.open)
+
+        self.refresh_btn = QPushButton("刷新")
+        self.refresh_btn.clicked.connect(self.refresh_announcements)
+
+        self.display_announcements()
+
+        # Create layout and arrange widgets
+        box = QVBoxLayout()
+        box.addWidget(self.announcements_table)
+        box.addWidget(self.refresh_btn)
+        self.setLayout(box)
+
+    def clear_announcements(self):
+        """删除所有公告"""
+        self.all_announcements = []
+        self.announcements_table.setRowCount(0)
+        self.announcements_table.clearContents()
+
+    def display_announcements(self):
+        """把公告从数据库里读取出来，并显示"""
+        self.clear_announcements()
+        self.all_announcements = announcement_db.query_announcements()
+        self.announcements_table.setRowCount(len(self.all_announcements))
+
+        font = self.announcements_table.font()
+        font.setBold(True)
+        for i, ann in enumerate(self.all_announcements):
+            ann_title = f'{ann["Name"]}: {ann["AnnouncementTitle"]}'
+            ann_date = ann["AnnouncementDate"]
+            if ann["AnnouncementState"] != "DELETED":
+                self.announcements_table.setItem(i, 0, QTableWidgetItem(ann_title))
+                self.announcements_table.setItem(i, 1, QTableWidgetItem(ann_date))
+                if ann["AnnouncementState"] == "UNREAD":
+                    font.setBold(True)
+                    self.announcements_table.item(i, 0).setFont(font)
+                elif ann["AnnouncementState"] == "READ":
+                    font.setBold(False)
+                    self.announcements_table.item(i, 0).setFont(font)
+
+    def refresh_announcements(self):
+        """从网站抓取数据，并更新数据库"""
+        self.all_announcements = []
+        for code in self.selected_stocks:
+            announcements = stockapi.get_latest_announcement(code, size=10, category="Announcement")
+            self.all_announcements = self.all_announcements + announcements
+
+        for ann in self.all_announcements:
+            ann_id = ann["AnnouncementId"]
+            code = ann["Code"]
+            name = ann["Name"]
+            title = ann["AnnouncementTitle"]
+            ann_date = ann["AnnouncementDate"]
+            url = ann["AnnouncementUrl"]
+            state = "UNREAD"
+            announcement_db.insert_announcement(int(ann_id), code, name, title, ann_date, url, state, reverse=False)
+
+        self.display_announcements()
+
+    def create_actions(self):
+        """add actions in the context menu"""
+        self.read_act = QAction("标为已读", self)
+        self.unread_act = QAction("标为未读", self)
+        self.open_act = QAction("打开", self)
+        self.delete_act = QAction("删除", self)
+
+        self.read_act.triggered.connect(self.read)
+        self.unread_act.triggered.connect(self.unread)
+        self.open_act.triggered.connect(self.open)
+        self.delete_act.triggered.connect(self.delete)
+
+    def read(self):
+        # 首先获取被选中的行号列表，并去重
+        rows = [item.row() for item in self.announcements_table.selectedItems()]
+        rows = list(set(rows))
+
+        for row in rows:
+            ann_id = self.all_announcements[row]["AnnouncementId"]
+            state = "READ"
+            announcement_db.update_announcement_state(int(ann_id), state)
+            font = self.announcements_table.font()
+            font.setBold(False)
+            self.announcements_table.item(row, 0).setFont(font)
+
+    def unread(self):
+        # 首先获取被选中的行号列表，并去重
+        rows = [item.row() for item in self.announcements_table.selectedItems()]
+        rows = list(set(rows))
+
+        for row in rows:
+            ann_id = self.all_announcements[row]["AnnouncementId"]
+            state = "UNREAD"
+            announcement_db.update_announcement_state(int(ann_id), state)
+            font = self.announcements_table.font()
+            font.setBold(True)
+            self.announcements_table.item(row, 0).setFont(font)
+
+    def delete(self):
+        rows = [item.row() for item in self.announcements_table.selectedItems()]
+        rows = list(set(rows))
+        rows.sort(reverse=True)
+
+        for row in rows:
+            print(self.all_announcements[row]["AnnouncementTitle"])
+            self.announcements_table.removeRow(row)
+            ann_id = self.all_announcements[row]["AnnouncementId"]
+            state = "DELETED"
+            del self.all_announcements[row]
+            announcement_db.update_announcement_state(int(ann_id), state)
+
+    def open(self):
+        self.read()
+        row = self.announcements_table.currentRow()
+        url = self.all_announcements[row]["AnnouncementUrl"]
+        print(f"open {url}")
+        webbrowser.open(url)
+
+    def contextMenuEvent(self, event):
+        context_menu = QMenu(self)
+
+        context_menu.addAction(self.read_act)
+        context_menu.addAction(self.unread_act)
+        context_menu.addAction(self.open_act)
+        context_menu.addAction(self.delete_act)
+
+        action = context_menu.exec(self.mapToGlobal(event.pos()))
+
+
+class FinancialStatementWidget(QWidget):
+    """获取指定股票财务报表的界面"""
+    def __init__(self):
+        super().__init__()
+        self.category = "zcfzb"
+        self.code = ""
+        self.initializeUI()
+
+    def initializeUI(self):
+        """initialize ui"""
+        self.setUpMainWindow()
+
+    def setUpMainWindow(self):
+        """set up main window"""
+        code_label = QLabel( """<p>输入股票名称:</p>""")
+
+        # 选择报表类型
+        self.balance_rb = QRadioButton("资产负债表")
+        self.balance_rb.setChecked(True)
+        self.balance_rb.toggled.connect(self.update_category)
+        self.income_rb = QRadioButton("利润表")
+        self.income_rb.toggled.connect(self.update_category)
+        self.cash_rb = QRadioButton("现金流量表")
+        self.cash_rb.toggled.connect(self.update_category)
+        category_h_box = QHBoxLayout()
+        category_h_box.addWidget(self.balance_rb)
+        category_h_box.addWidget(self.income_rb)
+        category_h_box.addWidget(self.cash_rb)
+        category_h_box.addStretch()
+
+        search_edit = StockSearchWidget()
+        search_edit.complete.connect(self.update_code)
+        # 显示财务报表的table
+        self.financial_table = QTableWidget()
+
+        box = QVBoxLayout()
+        box.addWidget(code_label)
+        box.addWidget(search_edit)
+        box.addLayout(category_h_box)
+        box.addWidget(self.financial_table)
+        self.setLayout(box)
+
+    def update_category(self):
+        """更新报表类型，然后更新报表"""
+        if self.balance_rb.isChecked():
+            current_category = "zcfzb"
+        elif self.income_rb.isChecked():
+            current_category = "lrb"
+        else:
+            current_category = "xjllb"
+
+        if self.category != current_category and self.code != "":
+            self.category = current_category
+            self.update_financial_statement()
+
+    def update_code(self, stock_info):
+        """更新股票代码，然后更新报表"""
+        code = stock_info.split(" ")[0]
+        if self.code != code:
+            self.code = code
+            self.update_financial_statement()
+
+    def update_financial_statement(self):
+        """获取给定股票的财务报表，并显示"""
+        statement = stockapi.get_financial_statement(self.code, self.category)
+        horizontal_headers = statement[0][1:]
+        vertical_headers = [item[0] for item in statement][1:]
+        row = len(vertical_headers)
+        column = len(horizontal_headers)
+        self.financial_table.setRowCount(row)
+        self.financial_table.setColumnCount(column)
+        self.financial_table.setVerticalHeaderLabels(vertical_headers)
+        self.financial_table.setHorizontalHeaderLabels(horizontal_headers)
+        for i, line in enumerate(statement[1:]):
+            for j, item in enumerate(line[1:]):
+                item_obj = QTableWidgetItem(item)
+                self.financial_table.setItem(i, j, item_obj)
+
+
+class MainWindow(QWidget):
+    "股票投资助手程序的主界面"
+    def __init__(self):
+        super().__init__()
+        self.selected_stocks = ["600887", "002594", "601166", "600298", "300760", "600905"]
+
+        self.initializeUI()
+        # self.get_other_data("000651")
+
+    def initializeUI(self):
+        self.setMinimumSize(1200, 800)
         self.setWindowTitle("股票公告下载")
+
+        # 删除系统自带标题栏
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
 
         self.directory = ""
         self.combo_value = ""
@@ -87,125 +596,90 @@ class MainWindow(QWidget):
         self.show()
 
     def setUpMainWindow(self):
-        code_label = QLabel( """<p>输入股票名称:</p>""")
-        self.symbol_edit = QComboBox()
-        self.symbol_edit.setPlaceholderText("代码/简称/关键字/高管")
-        self.symbol_edit.setEditable(True)
-        self.symbol_edit.editTextChanged.connect(self.update_symbol_edit)
-        self.symbol_edit.activated.connect(self.update_announcement_tedit)
-
-        self.choose_dir_button = QPushButton("选择位置")
-        self.choose_dir_button.clicked.connect(self.chooseDirectory)
-
-        # Text edit is for displaying the file names as they
-        # are updated
-        self.announcement_tedit = QTextBrowser()
-        self.announcement_tedit.setOpenLinks(True)
-        self.announcement_tedit.setOpenExternalLinks(True)
-        self.announcement_tedit.setReadOnly(True)
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setValue(0)
-        self.stop_button = QPushButton("下载")
-        self.stop_button.setEnabled(False)
-        self.stop_button.clicked.connect(self.download_announcements)
-        self.progress_label = QLabel()
-
-        # Create layout and arrange widgets
-        grid = QGridLayout()
-        grid.addWidget(code_label, 0, 0)
-        grid.addWidget(self.symbol_edit, 1, 0)
-        grid.addWidget(self.choose_dir_button, 1, 1)
-        grid.addWidget(self.announcement_tedit, 2, 0, 1, 2)
-        grid.addWidget(self.progress_bar, 3, 0, 1, 1)
-        grid.addWidget(self.stop_button, 3, 1)
-        grid.addWidget(self.progress_label, 4, 0, 1, 2)
-        self.setLayout(grid)
-
-    def update_symbol_edit(self, input_str):
         """
-        根据input_str, 更新combobox的items
+        setup main window
         """
-        url = f"http://www.cninfo.com.cn/new/information/topSearch/query?keyWord={input_str}&maxNum=10"
-        response = requests.post(url)
-        json_obj = json.loads(response.text)
+        # 标题栏
+        title_bar_box = QHBoxLayout()
+        title_label = QLabel("股票投资助手")
+        title_label.setObjectName("TitleLabel")
+        minimize_btn = QPushButton("")
+        minimize_btn.setObjectName("MinimizeButton")
+        maximize_btn = QPushButton("")
+        maximize_btn.setObjectName("MaximizeButton")
+        close_btn = QPushButton("")
+        close_btn.setObjectName("CloseButton")
 
-        if len(json_obj) > 1:
-            self.symbol_edit.clear()
-            self.announcement_tedit.setText("")
-            for obj in json_obj:
-                stock_code = obj["code"]
-                stock_name = obj["zwjc"]
-                category = obj["category"]
-                item = f"{stock_code}\t{category}\t{stock_name}"
-                self.symbol_edit.addItem(item)
-        elif len(json_obj) == 1:
-            self.symbol_edit.clear()
-            stock_name = json_obj[0]["zwjc"]
-            stock_code = json_obj[0]["code"]
-            category = json_obj[0]["category"]
-            item = f"{stock_code}\t{category}\t{stock_name}"
-            self.symbol_edit.addItem(item)
-            self.update_announcement(stock_name)
+        # title_bar_box.addStretch()
+        title_bar_box.addWidget(StockSearchWidget())
+        title_bar_box.addWidget(title_label)
+        title_bar_box.addWidget(minimize_btn)
+        title_bar_box.addWidget(maximize_btn)
+        title_bar_box.addWidget(close_btn)
 
-    def update_announcement_tedit(self):
-        text = self.symbol_edit.currentText()
-        stock_name = text.split("\t")[2]
-        self.symbol_edit.clear()
-        self.update_announcement(stock_name)
+        minimize_btn.clicked.connect(self.minimize_window)
+        maximize_btn.clicked.connect(self.maximize_window)
+        close_btn.clicked.connect(self.close)
+        # 左侧导航栏
+        self.sel = QListWidget()
+        self.sel.setMaximumWidth(150)
+        self.sel.setObjectName("sel")
+        func_list = ["自选股","定期报告", "公告资讯", "财务数据"]
+        for item in func_list:
+            list_item = QListWidgetItem()
+            list_item.setText(item)
+            self.sel.addItem(list_item)
+        self.sel.currentRowChanged.connect(self.switch_page)
 
-    def update_announcement(self, input_str):
-        """
-        获取org_id, code
-        """
-        url = f"http://www.cninfo.com.cn/new/information/topSearch/query?keyWord={input_str}&maxNum=10"
-        response = requests.post(url)
-        json_obj = json.loads(response.text)
+        # 自选股页面
+        pg0_container = SelectedStocksWidget(selected_stocks=self.selected_stocks)
 
-        if len(json_obj) > 0:
-            org_id = json_obj[0]["orgId"]
-            stock_code = json_obj[0]["code"]
-            stock_name = json_obj[0]["zwjc"]
+        # 定期报告页面
+        self.pg1_container = DownloadReportWidget()
+
+        # 公告资讯页面
+        pg2_container = LatestAnnouncementWidget(selected_stocks=self.selected_stocks)
+
+        # 财务数据页面
+        pg3_container = FinancialStatementWidget()
+
+        # create the stacked layout and add pages
+        self.stack = QStackedLayout()
+        self.stack.addWidget(pg0_container)
+        self.stack.addWidget(self.pg1_container)
+        self.stack.addWidget(pg2_container)
+        self.stack.addWidget(pg3_container)
+
+        main_h_box = QHBoxLayout()
+        main_h_box.addWidget(self.sel)
+        main_h_box.addLayout(self.stack)
+
+        # create the main layout
+        main_v_box = QVBoxLayout()
+        main_v_box.addLayout(title_bar_box)
+        main_v_box.addLayout(main_h_box)
+
+        self.setLayout(main_v_box)
+
+    def minimize_window(self):
+        self.showMinimized()
+
+    def maximize_window(self):
+        if self.isMaximized():
+            self.showNormal()
         else:
-            return None
+            self.showMaximized()
 
-        # 构造请求
-        # 判断输入的股票名称是否完整
-        response_obj = None
-        if input_str == stock_name:
-            stock = stock_code + "," + org_id
-            tab_name = "fulltext"
-            category = "category_ndbg_szsh;category_sf_szsh;"
-            search_key = stock_name
-            is_hl_title = "true"
-            post_data = {"stock": stock,
-                    "tabName": tab_name,
-                    "pageSize": "30",
-                    "pageNum": "1",
-                    "column": "szse" if stock_code[0] in "03" else "sse",
-                    "category": category,
-                    "plate": "sz" if stock_code[0] in "03" else "sh",
-                    "seDate": "",
-                    "searchKey": search_key,
-                    "secid": "",
-                    "sortName": "",
-                    "sortType": "",
-                    "isHLtitle": is_hl_title}
-            url = "http://www.cninfo.com.cn/new/hisAnnouncement/query"
-            response = requests.post(url, data=post_data)
-            response_obj = json.loads(response.text)
-            announcement = ""
-            for ann in response_obj["announcements"]:
-                announcement = announcement + ann["announcementTitle"] + "\n"
-                ann["ann_dl_url"] = urljoin("http://static.cninfo.com.cn", ann["adjunctUrl"])
-                url = ann["ann_dl_url"]
-                announcement = f'<a href="{url}">{announcement}</a><p>'
-            self.announcement_tedit.insertHtml(announcement)
-            self.stop_button.setEnabled(True)
-        self.response_obj = response_obj
+    def switch_page(self, row):
+        """slot for switching between tabs"""
+        self.stack.setCurrentIndex(row)
+        title = self.sel.currentItem().text()
+        self.setWindowTitle(f"股票投资助手 - {title}")
 
     def download_announcements(self):
         """下载公告pdf文件"""
-        worker = DownloadWorker(self.response_obj["announcements"], self.directory)
+        directory = self.chooseDirectory()
+        worker = DownloadWorker(self.response_obj["announcements"], directory)
         worker.update_value_signal.connect(self.updateProgressBar)
         worker.update_str_signal.connect(self.update_progress_label)
         worker.run()
@@ -214,9 +688,8 @@ class MainWindow(QWidget):
     def chooseDirectory(self):
         """Choose file directory."""
         file_dialog = QFileDialog(self)
-        file_dialog.setFileMode(
-            QFileDialog.FileMode.Directory)
-        self.directory = file_dialog.getExistingDirectory(
+        file_dialog.setFileMode(QFileDialog.FileMode.Directory)
+        return file_dialog.getExistingDirectory(
             self, "Open Directory", "",
             QFileDialog.Option.ShowDirsOnly)
 
@@ -231,6 +704,28 @@ class MainWindow(QWidget):
 
     def update_progress_label(self, progress_str):
         self.progress_label.setText(progress_str)
+
+    def closeEvent(self, event):
+        sys.exit(app.exec())
+
+    def mousePressEvent(self, a0):
+        event_object = self.childAt(a0.pos().x(), a0.pos().y())
+        if hasattr(event_object, "objectName"):
+            if event_object.objectName() == "TitleLabel":
+                if a0.button() == Qt.MouseButton.LeftButton:
+                    self._is_tracking = True
+                    self._start_pos = QPoint(a0.pos().x(), a0.pos().y())
+    
+    def mouseMoveEvent(self, a0):
+        if self._start_pos:
+            self._end_pos = a0.pos() - self._start_pos
+            self.move(self.pos() + self._end_pos)
+
+    def mouseReleaseEvent(self, a0):
+        if a0.button() == Qt.MouseButton.LeftButton:
+            self._is_tracking = False
+            self._start_pos = None
+            self._end_pos = None
 
 
 if __name__ == "__main__":
