@@ -67,8 +67,22 @@ style_sheet = """
         border-radius: 8px;
     }
 
+    QPushButton#MinimizeButton:hover{
+        background-color: #18e73e;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+    }
+
     QPushButton#MaximizeButton{
         background-color: #ffbd05;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+    }
+
+    QPushButton#MaximizeButton:hover{
+        background-color: #ffcf4d;
         width: 16px;
         height: 16px;
         border-radius: 8px;
@@ -81,9 +95,13 @@ style_sheet = """
         border-radius: 8px;
     }
 
-    StockSearchWidget#StockSearch{
-        width: 100px;
+    QPushButton#CloseButton:hover{
+        background-color: #ff8880;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
     }
+
 """
 
 
