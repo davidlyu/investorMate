@@ -361,7 +361,7 @@ class LatestAnnouncementWidget(QWidget):
         """从网站抓取数据，并更新数据库"""
         self.all_announcements = []
         for code in self.selected_stocks:
-            announcements = stockapi.get_latest_announcement(code, size=10, category="Announcement")
+            announcements = stockapi.get_latest_announcement2(code, size=1)
             self.all_announcements = self.all_announcements + announcements
 
         for ann in self.all_announcements:

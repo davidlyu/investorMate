@@ -47,12 +47,20 @@ def get_market_data(stock_code):
     """
     result = {}
 
-    if stock_code[0] in "03":
-        plate = "sz"
-    elif stock_code[0] == "6":
-        plate = "sh"
-    elif stock_code[0] == "8":
-        plate = "bj"
+    # A股
+    if len(stock_code) == 6:
+        # 上交所
+        if stock_code[0] in "03":
+            plate = "sz"
+        # 上交所
+        elif stock_code[0] == "6":
+            plate = "sh"
+        # 北交所
+        elif stock_code[0] == "8":
+            plate = "bj"
+    # 港交所
+    elif len(stock_code) == 5 and stock_code[0] == "0":
+        plate = "hk"
     else:
         return result
 
@@ -77,7 +85,13 @@ def get_market_data(stock_code):
         result = {"Name": search_obj[1], "Code": search_obj[2],
                 "LatestPrice": search_obj[3], "ChangeAmount": search_obj[31],
                 "ChangeRate": search_obj[32], "PETTM": search_obj[39],
-                "PB": search_obj[46], "MarketValue": search_obj[45]}
+                "MarketValue": search_obj[45]}
+        # 港股 PB 的位置不一样
+        if plate == "hk":
+            result["PB"] = search_obj[58]
+        else:
+            result["PB"] = search_obj[46]
+
     return result
 
 
@@ -178,6 +192,48 @@ def get_latest_announcement(code, size=30, category="Report"):
     return announcements
 
 
+def get_latest_announcement2(code, size=1):
+    """
+    在巨潮资讯网根据股票代码查询获得公告
+    category:
+        Report, return regular reports
+        Announcement, return latest Announcements
+        Relation, return investor relation activities records
+    """
+    announcements = []
+    # 利用get_recommend_stock获得org_id
+    rec = get_recommend_stock(code)
+    if len(rec) > 0:
+        name = rec[0]["Name"]
+        for i in range(size):
+            url = "http://www.cninfo.com.cn/new/fulltextSearch/full?"
+            url += f"searchkey={name}&sdate=&edate=&isfulltext=false&"
+            url += f"sortName=pubdate&sortType=desc&pageNum={i+1}"
+            try:
+                response = requests.get(url)
+            except requests.exceptions.ConnectionError as e:
+                print(f"ConnectionError occurred: {e}")
+                return announcements
+
+            json_obj = json.loads(response.text)
+            if json_obj["announcements"] != None:
+                for obj in json_obj["announcements"]:
+                    announce = {
+                        "Code": obj["secCode"],
+                        "Name": obj["secName"],
+                        "OrgId": obj["orgId"],
+                        "AnnouncementId": obj["announcementId"],
+                        "AnnouncementTimestamp": obj["announcementTime"],
+                        "AnnouncementDate": date.fromtimestamp(int(obj["announcementTime"])/1000).isoformat(),
+                        "AnnouncementUrl": urljoin("http://static.cninfo.com.cn", obj["adjunctUrl"])}
+
+                    title = obj["announcementTitle"]
+                    title = re.sub(r'</?em>', "", title)
+                    announce["AnnouncementTitle"] = title
+
+                    announcements.append(announce)
+    return announcements
+
 def get_financial_statement(code, category):
     """
     从网易财经获取股票的财务报表
@@ -197,7 +253,6 @@ def get_financial_statement(code, category):
 
     # 获取给定code, category最新财报日期
     url = f"http://quotes.money.163.com/f10/{category}_{code}.html"
-    print(url)
     response = requests.get(url)
     tree = etree.HTML(response.text)
     xpath = '//div[@class="col_r"]/table/tr[1]/th[1]'
@@ -230,4 +285,6 @@ if __name__ == "__main__":
     # sta = get_financial_statement("601166", "zcfzb")
     # for row in sta:
     #     print(row)
-    print(get_market_data("002594"))
+    # print(get_latest_announcement2("00700"))
+    for a in get_latest_announcement2("00700"):
+        print(a)
