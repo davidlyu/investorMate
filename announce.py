@@ -22,87 +22,29 @@ import stockapi
 import createdb
 from test import StockSearchWidget
 
+
 # 参数
 STOCK_UPDATE_INTERVAL = 10
+
+# 导入 QSS 函数
+def load_style_from_qss(f):
+    """
+    从 qss 文件导入样式
+    参数：
+        f - qss 文件名
+    返回：
+        样式字符串
+    """
+    file_obj = open(f)
+    lines = file_obj.readlines()
+    file_obj.close()
+    res = ''
+    for line in lines:
+        res += line
+    return res
+
+
 announcement_db = createdb.AnnouncementDatabase()
-
-
-style_sheet = """
-    QProgressBar{
-            background-color: #C0C6CA;
-            color: #FFFFFF;
-            border: 1px solid grey;
-            padding: 3px;
-            height: 15px;
-            text-align: center;
-            }
-
-    QProgressBar::chunk{
-            background: #538DB8;
-            width: 5px;
-            margin: 0.5px;
-            }
-
-    QListWidget#sel{
-            outline: 0px;
-            border: 0px;
-            min-width: 120px;
-            color: Black;
-            background: #F5F5F5;
-            }
-
-    QListWidget#sel::Item{
-            height: 30px;
-            }
-
-    QListWidget#sel::Item:selected{
-            background: rgb(49, 194, 124);
-            border-radius: 1.5px;
-            }
-
-    QPushButton#MinimizeButton{
-        background-color: #15cd36;
-        width: 16px;
-        height: 16px;
-        border-radius: 8px;
-    }
-
-    QPushButton#MinimizeButton:hover{
-        background-color: #18e73e;
-        width: 16px;
-        height: 16px;
-        border-radius: 8px;
-    }
-
-    QPushButton#MaximizeButton{
-        background-color: #ffbd05;
-        width: 16px;
-        height: 16px;
-        border-radius: 8px;
-    }
-
-    QPushButton#MaximizeButton:hover{
-        background-color: #ffcf4d;
-        width: 16px;
-        height: 16px;
-        border-radius: 8px;
-    }
-
-    QPushButton#CloseButton{
-        background-color: #ff6054;
-        width: 16px;
-        height: 16px;
-        border-radius: 8px;
-    }
-
-    QPushButton#CloseButton:hover{
-        background-color: #ff8880;
-        width: 16px;
-        height: 16px;
-        border-radius: 8px;
-    }
-
-"""
 
 
 class DownloadWorker(QThread):
@@ -152,9 +94,9 @@ class UpdateStockWorker(QThread):
     """
     stock_data_ready_signal = pyqtSignal(object)
 
-    def __init__(self, codes):
+    def __init__(self):
         super().__init__()
-        self.codes = codes
+        self.update_database()
 
         self.start_update = False
 
@@ -162,6 +104,9 @@ class UpdateStockWorker(QThread):
         self.stop_update = False
         self.terminate()
         self.wait()
+
+    def update_database(self):
+        self.codes = announcement_db.query_stocks()
 
     def run(self):
         interval = STOCK_UPDATE_INTERVAL
@@ -189,7 +134,6 @@ class DownloadReportWidget(QWidget):
 
     def setUpMainWindow(self):
         """set up mainwindow"""
-        code_label = QLabel( """<p>输入股票名称:</p>""")
 
         self.announcement_tedit = QTextBrowser()
         self.announcement_tedit.setOpenLinks(True)
@@ -203,26 +147,20 @@ class DownloadReportWidget(QWidget):
 
         self.stop_button = QPushButton("下载")
         self.stop_button.setEnabled(False)
-        # self.stop_button.clicked.connect(self.download_announcements)
 
-        search = StockSearchWidget()
-        search.complete.connect(self.update_announcement_tedit)
-        # Create layout and arrange widgets
         grid = QGridLayout()
-        grid.addWidget(code_label, 0, 0)
-        grid.addWidget(search, 1, 0, 1, 2)
-        grid.addWidget(self.announcement_tedit, 2, 0, 1, 2)
-        grid.addWidget(self.progress_bar, 3, 0)
-        grid.addWidget(self.stop_button, 3, 1)
-        grid.addWidget(self.progress_label, 4, 0)
+        grid.addWidget(self.announcement_tedit, 0, 0, 1, 2)
+        grid.addWidget(self.progress_bar, 1, 0)
+        grid.addWidget(self.stop_button, 1, 1)
+        grid.addWidget(self.progress_label, 2, 0)
         self.setLayout(grid)
 
-    def update_announcement_tedit(self, stock_info):
+    def update_announcement_tedit(self, stock_str):
         """
         update announcements tedit
         """
-        code = stock_info.split(" ")[0]
-        self.symbol_edit.clear()
+        code = stock_str.split(" ")[0]
+        # self.symbol_edit.clear()
 
         announcements = stockapi.get_latest_announcement(code)
         html = ""
@@ -237,12 +175,12 @@ class DownloadReportWidget(QWidget):
 
 class SelectedStocksWidget(QWidget):
     """自选股页面"""
-    def __init__(self, selected_stocks):
+    def __init__(self):
         super().__init__()
-        self.selected_stocks = selected_stocks
-        update_stock_worker = UpdateStockWorker(self.selected_stocks)
-        update_stock_worker.start()
-        update_stock_worker.stock_data_ready_signal.connect(self.display_stock_data)
+        self.selected_stocks = announcement_db.query_stocks()
+        self.update_stock_worker = UpdateStockWorker()
+        self.update_stock_worker.start()
+        self.update_stock_worker.stock_data_ready_signal.connect(self.display_stocks_data)
         self.initializeUI()
 
     def initializeUI(self):
@@ -260,22 +198,12 @@ class SelectedStocksWidget(QWidget):
         header_labels = ["名称", "代码", "最新", "涨幅", "涨跌", "市盈TTM", "市净", "总市值"]
         self.stocks_table.setHorizontalHeaderLabels(header_labels)
 
-        add_label = QLabel("添加自选股")
-        self.search_widget = StockSearchWidget()
-        self.search_widget.complete.connect(self.add_stocks)
-
         # Create layout and arrange widgets
         box = QVBoxLayout()
         box.addWidget(self.stocks_table)
-
-        hbox = QHBoxLayout()
-        hbox.addWidget(add_label)
-        hbox.addWidget(self.search_widget)
-
-        box.addLayout(hbox)
         self.setLayout(box)
 
-    def add_stocks(self, stock_info):
+    def add_stock(self, stock_info):
         # print(stock_info)
         # print(stock_info.split())
         split = stock_info.split()
@@ -284,7 +212,8 @@ class SelectedStocksWidget(QWidget):
         name = split[2]
         # code, category, name = stock_info.split(" ")
         announcement_db.insert_stock(code, name, category)
-        self.display_stock_data()
+        self.update_stock_worker.update_database()
+        # self.display_stocks_data()
 
     def contextMenuEvent(self, event):
         delete_action = QAction("删除", self)
@@ -304,11 +233,11 @@ class SelectedStocksWidget(QWidget):
                 code = self.stocks_table.item(row, 1).text()
                 print(code)
                 announcement_db.delete_stock(code)
+            self.update_stock_worker.update_database()
 
-        self.display_stock_data()
+        # self.display_stocks_data()
 
-    def display_stock_data(self, stocks_data):
-        print("yes")
+    def display_stocks_data(self, stocks_data):
         self.stocks_table.setRowCount(0)
         self.stocks_table.clearContents()
 
@@ -369,9 +298,9 @@ class SelectedStocksWidget(QWidget):
 
 class LatestAnnouncementWidget(QWidget):
     """获取多只股票的最新公告的界面"""
-    def __init__(self, selected_stocks):
+    def __init__(self):
         super().__init__()
-        self.selected_stocks = selected_stocks
+        self.selected_stocks = announcement_db.query_stocks()
         self.initializeUI()
 
     def initializeUI(self):
@@ -530,7 +459,7 @@ class FinancialStatementWidget(QWidget):
 
     def setUpMainWindow(self):
         """set up main window"""
-        code_label = QLabel( """<p>输入股票名称:</p>""")
+        # code_label = QLabel( """<p>输入股票名称:</p>""")
 
         # 选择报表类型
         self.balance_rb = QRadioButton("资产负债表")
@@ -546,14 +475,14 @@ class FinancialStatementWidget(QWidget):
         category_h_box.addWidget(self.cash_rb)
         category_h_box.addStretch()
 
-        search_edit = StockSearchWidget()
-        search_edit.complete.connect(self.update_code)
+        # search_edit = StockSearchWidget()
+        # search_edit.complete.connect(self.update_code)
         # 显示财务报表的table
         self.financial_table = QTableWidget()
 
         box = QVBoxLayout()
-        box.addWidget(code_label)
-        box.addWidget(search_edit)
+        # box.addWidget(code_label)
+        # box.addWidget(search_edit)
         box.addLayout(category_h_box)
         box.addWidget(self.financial_table)
         self.setLayout(box)
@@ -571,9 +500,9 @@ class FinancialStatementWidget(QWidget):
             self.category = current_category
             self.update_financial_statement()
 
-    def update_code(self, stock_info):
+    def update_code(self, stock_str):
         """更新股票代码，然后更新报表"""
-        code = stock_info.split(" ")[0]
+        code = stock_str.split(" ")[0]
         if self.code != code:
             self.code = code
             self.update_financial_statement()
@@ -599,10 +528,8 @@ class MainWindow(QWidget):
     "股票投资助手程序的主界面"
     def __init__(self):
         super().__init__()
-        self.selected_stocks = ["600887", "002594", "601166", "600298", "300760", "600905"]
 
         self.initializeUI()
-        # self.get_other_data("000651")
 
     def initializeUI(self):
         self.setMinimumSize(1200, 800)
@@ -610,6 +537,8 @@ class MainWindow(QWidget):
 
         # 删除系统自带标题栏
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
+        # self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setObjectName("MainWindow")
 
         self.directory = ""
         self.combo_value = ""
@@ -621,7 +550,7 @@ class MainWindow(QWidget):
         """
         setup main window
         """
-        # 标题栏
+        # ============ 标题栏 ===================
         title_bar_box = QHBoxLayout()
         title_label = QLabel("股票投资助手")
         title_label.setObjectName("TitleLabel")
@@ -634,6 +563,7 @@ class MainWindow(QWidget):
 
         self.stock_search_widget = StockSearchWidget()
         self.stock_search_widget.setFixedWidth(250)
+        self.stock_search_widget.complete.connect(self.stock_search_complete)
         title_bar_box.addWidget(self.stock_search_widget)
         title_bar_box.addWidget(title_label)
         title_bar_box.addStretch()
@@ -641,10 +571,15 @@ class MainWindow(QWidget):
         title_bar_box.addWidget(maximize_btn)
         title_bar_box.addWidget(close_btn)
 
+        title_bar_widget = QWidget()
+        title_bar_widget.setObjectName("TitleBar")
+        title_bar_widget.setLayout(title_bar_box)
+
         minimize_btn.clicked.connect(self.minimize_window)
         maximize_btn.clicked.connect(self.maximize_window)
         close_btn.clicked.connect(self.close)
-        # 左侧导航栏
+
+        # ============== 左侧导航栏 =====================
         self.sel = QListWidget()
         self.sel.setMaximumWidth(150)
         self.sel.setObjectName("sel")
@@ -655,35 +590,37 @@ class MainWindow(QWidget):
             self.sel.addItem(list_item)
         self.sel.currentRowChanged.connect(self.switch_page)
 
-        # 自选股页面
-        pg0_container = SelectedStocksWidget(selected_stocks=self.selected_stocks)
-
-        # 定期报告页面
-        self.pg1_container = DownloadReportWidget()
-
-        # 公告资讯页面
-        pg2_container = LatestAnnouncementWidget(selected_stocks=self.selected_stocks)
-
-        # 财务数据页面
-        pg3_container = FinancialStatementWidget()
-
-        # create the stacked layout and add pages
+        # =============== 右侧界面 ======================
+        self.pages = {
+            "SelectedStocks": SelectedStocksWidget(),
+            "DownloadReport": DownloadReportWidget(),
+            "LatestAnnouncement": LatestAnnouncementWidget(),
+            "FinancialStatement": FinancialStatementWidget(),
+        }
         self.stack = QStackedLayout()
-        self.stack.addWidget(pg0_container)
-        self.stack.addWidget(self.pg1_container)
-        self.stack.addWidget(pg2_container)
-        self.stack.addWidget(pg3_container)
+        for _, widget in self.pages.items():
+            self.stack.addWidget(widget)
 
+        # ================== 主界面 =======================
         main_h_box = QHBoxLayout()
         main_h_box.addWidget(self.sel)
         main_h_box.addLayout(self.stack)
 
         # create the main layout
         main_v_box = QVBoxLayout()
-        main_v_box.addLayout(title_bar_box)
+        main_v_box.addWidget(title_bar_widget)
         main_v_box.addLayout(main_h_box)
 
         self.setLayout(main_v_box)
+
+    # ============ 槽函数 =================
+    def stock_search_complete(self, stock_str):
+        if self.stack.currentWidget() == self.pages["SelectedStocks"]:
+            self.pages["SelectedStocks"].add_stock(stock_str)
+        elif self.stack.currentWidget() == self.pages["DownloadReport"]:
+            self.pages["DownloadReport"].update_announcement_tedit(stock_str)
+        elif self.stack.currentWidget() == self.pages["FinancialStatement"]:
+            self.pages["FinancialStatement"].update_code(stock_str)
 
     def minimize_window(self):
         self.showMinimized()
@@ -735,7 +672,7 @@ class MainWindow(QWidget):
     def mousePressEvent(self, a0):
         event_object = self.childAt(a0.pos().x(), a0.pos().y())
         if hasattr(event_object, "objectName"):
-            if event_object.objectName() == "TitleLabel":
+            if event_object.objectName() in ["TitleBar", "TitleLabel"]:
                 if a0.button() == Qt.MouseButton.LeftButton:
                     self._is_tracking = True
                     self._start_pos = QPoint(a0.pos().x(), a0.pos().y())
@@ -754,6 +691,7 @@ class MainWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    style_sheet = load_style_from_qss("style.qss")
     app.setStyleSheet(style_sheet)
     window = MainWindow()
     sys.exit(app.exec())
