@@ -564,8 +564,8 @@ class MainWindow(QWidget):
         self.stock_search_widget = StockSearchWidget()
         self.stock_search_widget.setFixedWidth(250)
         self.stock_search_widget.complete.connect(self.stock_search_complete)
-        title_bar_box.addWidget(self.stock_search_widget)
         title_bar_box.addWidget(title_label)
+        title_bar_box.addWidget(self.stock_search_widget)
         title_bar_box.addStretch()
         title_bar_box.addWidget(minimize_btn)
         title_bar_box.addWidget(maximize_btn)
@@ -608,6 +608,7 @@ class MainWindow(QWidget):
 
         # create the main layout
         main_v_box = QVBoxLayout()
+        main_v_box.setContentsMargins(0, 0, 0, 0)
         main_v_box.addWidget(title_bar_widget)
         main_v_box.addLayout(main_h_box)
 
