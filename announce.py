@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (QApplication, QStackedWidget, QTableWidget, QTextBr
         QComboBox, QFileDialog, QGridLayout, QListWidget, QListWidgetItem, QHBoxLayout, QAbstractItemView,
         QMenu)
 from PyQt6.QtCore import pyqtSignal, QThread, QPoint, Qt
-from PyQt6.QtGui import QFont, QAction, QColor
+from PyQt6.QtGui import QFont, QAction, QColor, QPixmap
 import stockapi
 import createdb
 from test import StockSearchWidget
@@ -311,11 +311,13 @@ class LatestAnnouncementWidget(QWidget):
     def setUpMainWindow(self):
         """set up main window"""
         self.announcements_table = QTableWidget()
-        self.announcements_table.setColumnCount(2)
-        self.announcements_table.setColumnWidth(0, 800)
+        self.announcements_table.setColumnCount(3)
+        self.announcements_table.setColumnWidth(0, 20)
+        self.announcements_table.setColumnWidth(1, 800)
         self.announcements_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.announcements_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.announcements_table.setHorizontalHeaderLabels(["公告标题", "公告时间"])
+        self.announcements_table.setHorizontalHeaderLabels(["序号", "公告标题", "公告时间"])
+        self.announcements_table.verticalHeader().setVisible(False)
         self.announcements_table.itemClicked.connect(self.read)
         self.announcements_table.itemDoubleClicked.connect(self.open)
 
@@ -348,8 +350,11 @@ class LatestAnnouncementWidget(QWidget):
             ann_title = f'{ann["Name"]}: {ann["AnnouncementTitle"]}'
             ann_date = ann["AnnouncementDate"]
             if ann["AnnouncementState"] != "DELETED":
-                self.announcements_table.setItem(i, 0, QTableWidgetItem(ann_title))
-                self.announcements_table.setItem(i, 1, QTableWidgetItem(ann_date))
+                num_item = QTableWidgetItem(f"{i+1}")
+                num_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.announcements_table.setItem(i, 0, num_item)
+                self.announcements_table.setItem(i, 1, QTableWidgetItem(ann_title))
+                self.announcements_table.setItem(i, 2, QTableWidgetItem(ann_date))
                 if ann["AnnouncementState"] == "UNREAD":
                     font.setBold(True)
                     self.announcements_table.item(i, 0).setFont(font)
@@ -552,12 +557,16 @@ class MainWindow(QWidget):
         """
         # ============ 标题栏 ===================
         title_bar_box = QHBoxLayout()
-        title_label = QLabel("股票投资助手")
+        title_bar_box.setContentsMargins(0, 0, 0, 0)
+        title_label = QLabel(" 股票投资助手")
         title_label.setObjectName("TitleLabel")
+
         minimize_btn = QPushButton("")
         minimize_btn.setObjectName("MinimizeButton")
+
         maximize_btn = QPushButton("")
         maximize_btn.setObjectName("MaximizeButton")
+
         close_btn = QPushButton("")
         close_btn.setObjectName("CloseButton")
 

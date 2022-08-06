@@ -1,3 +1,7 @@
+*{
+    border: 1px solid gray;
+}
+
 QWidget#MainWindow{
     padding-top: 0px;
     background-color: #ffffff;
@@ -18,81 +22,57 @@ QProgressBar::chunk{
         margin: 0.5px;
         }
 
-/* QListWidget#sel{
-        outline: 0px;
-        border: 0px;
-        min-width: 120px;
-        color: Black;
-        background: #F5F5F5;
-        }
-
-QListWidget#sel::Item{
-        height: 30px;
-        }
-
-QListWidget#sel::Item:selected{
-        background: rgb(49, 194, 124);
-        border-radius: 1.5px;
-        } */
-
-QPushButton#MinimizeButton{
-    background-color: #15cd36;
-    width: 16px;
-    height: 16px;
-    border-radius: 8px;
+QLabel#TitleLabel{
+    color: #e4e4e4;
+    font-size: 16px;
+    border: 0px;
 }
 
+QPushButton#MinimizeButton{
+    background-color: #c52f2f;
+    width: 30px;
+    height: 30px;
+    border: 0px;
+}
 QPushButton#MinimizeButton:hover{
-    background-color: #18e73e;
-    width: 16px;
-    height: 16px;
-    border-radius: 8px;
+    background-color: #dc6f6f;
+    width: 30px;
+    height: 30px;
 }
 
 QPushButton#MaximizeButton{
-    background-color: #ffbd05;
-    width: 16px;
-    height: 16px;
-    border-radius: 8px;
+    background-color: #c52f2f;
+    width: 30px;
+    height: 30px;
+    border: 0px;
 }
-
 QPushButton#MaximizeButton:hover{
-    background-color: #ffcf4d;
-    width: 16px;
-    height: 16px;
-    border-radius: 8px;
+    background-color: #dc6f6f;
+    width: 30px;
+    height: 30px;
 }
 
 QPushButton#CloseButton{
-    background-color: #ff6054;
-    width: 16px;
-    height: 16px;
-    border-radius: 8px;
+    background-color: #c52f2f;
+    width: 30px;
+    height: 30px;
+    border: 0px;
+    border: 0px;
 }
-
 QPushButton#CloseButton:hover{
-    background-color: #ff8880;
-    width: 16px;
-    height: 16px;
-    border-radius: 8px;
+    background-color: #dc6f6f;
+    width: 30px;
+    height: 30px;
 }
 
 QWidget#TitleBar{
     background-color: #c52f2f;
-    height: 18px;
-    margin-top: 0px;
-    padding-top: 0px;
-}
-
-QLabel#TitleLabel{
-    color: #e4e4e4;
-    font-size: 14px;
-    font-style: bold;
+    padding-left: 5px;
 }
 
 QLineEdit{
-    height: 16px;
     border-radius: 7px;
     background-color: #a82828;
     color: #ae6b60;
+    border: 1px;
 }
