@@ -195,6 +195,7 @@ class SelectedStocksWidget(QWidget):
         self.stocks_table.setRowCount(len(self.selected_stocks))
         self.stocks_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.stocks_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.stocks_table.verticalHeader().setVisible(False)
         header_labels = ["名称", "代码", "最新", "涨幅", "涨跌", "市盈TTM", "市净", "总市值"]
         self.stocks_table.setHorizontalHeaderLabels(header_labels)
 
