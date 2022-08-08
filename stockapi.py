@@ -280,11 +280,28 @@ def get_financial_statement(code, category):
     return statement
 
 
+def get_study_reports(code: str) -> list:
+    """
+    获取个股研究报告
+    code: 个股代码，A股为6位数字的字符串
+    return: 个股研报的列表，每个元素为字典，代表一个研报
+    """
+    url = f"https://data.eastmoney.com/report/{code}.html"
+    res_obj = requests.get(url)
+    res_obj.encoding = "utf-8"
+    json_str = re.search("initdata = (.*);", res_obj.text).group(1)
+    json_obj = json.loads(json_str)
+    return json_obj["data"]
+
+
 if __name__ == "__main__":
     #res = get_latest_announcement("002594")
     # sta = get_financial_statement("601166", "zcfzb")
     # for row in sta:
     #     print(row)
     # print(get_latest_announcement2("00700"))
-    for a in get_latest_announcement2("00700"):
-        print(a)
+    # for a in get_latest_announcement2("00700"):
+    #     print(a)
+    reports = get_study_reports("002594")
+    for report in reports:
+        print(report)
