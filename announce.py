@@ -450,6 +450,79 @@ class LatestAnnouncementWidget(QWidget):
 
         action = context_menu.exec(self.mapToGlobal(event.pos()))
 
+class StudyReportWidget(QWidget):
+    """获取自选股研究报告的界面"""
+    def __init__(self):
+        super().__init__()
+        self.selected_stocks = announcement_db.query_stocks()
+        self.initializeUI()
+
+    def initializeUI(self):
+        """initialize ui"""
+        self.setUpMainWindow()
+        # self.create_actions()
+
+    def setUpMainWindow(self):
+        """set up main window"""
+        self.report_table = QTableWidget()
+        self.report_table.setColumnCount(6)
+        self.report_table.setColumnWidth(0, 35)     # 序号
+        self.report_table.setColumnWidth(1, 500)    # 标题
+        self.report_table.setColumnWidth(2, 40)     # 评级
+        self.report_table.setColumnWidth(3, 150)    # 作者
+        self.report_table.setColumnWidth(4, 100)    # 机构
+        self.report_table.setColumnWidth(5, 100)    # 发布日期
+
+        self.report_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.report_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.report_table.setHorizontalHeaderLabels(["序号", "标题", "评级", "作者", "机构", "发布日期"])
+        self.report_table.verticalHeader().setVisible(False)
+        # self.report_table.itemClicked.connect(self.read)
+        # self.report_table.itemDoubleClicked.connect(self.open)
+
+        self.refresh_btn = QPushButton("刷新")
+        self.refresh_btn.clicked.connect(self.refresh_study_reports)
+
+        self.display_reports()
+
+        # Create layout and arrange widgets
+        box = QVBoxLayout()
+        box.addWidget(self.report_table)
+        box.addWidget(self.refresh_btn)
+        self.setLayout(box)
+
+    def clear_reports(self):
+        """删除所有报告"""
+        self.all_reports = []
+        self.report_table.setRowCount(0)
+        self.report_table.clearContents()
+
+    def display_reports(self):
+        """显示研究报告"""
+        self.report_table.setRowCount(0)
+        self.report_table.clearContents()
+
+        self.all_study_reports = announcement_db.query_study_reports()
+        self.report_table.setRowCount(len(self.all_study_reports))
+        for i, report in enumerate(self.all_study_reports):
+            num_item = QTableWidgetItem(f"{i+1}")
+            self.report_table.setItem(i, 0, num_item)
+
+            headers = ["Title", "EmRatingName", "Authors", "OrgShortName", "PublishDate"]
+            for j, header in enumerate(headers):
+                item = QTableWidgetItem(report[header])
+                self.report_table.setItem(i, j+1, item)
+
+    def refresh_study_reports(self):
+        self.all_study_reports = []
+        for code in self.selected_stocks:
+            reports = stockapi.get_study_reports(code)
+            self.all_study_reports = self.all_study_reports + reports
+
+        for report_obj in self.all_study_reports:
+            announcement_db.insert_study_report(report_obj)
+        
+        self.display_reports()
 
 class FinancialStatementWidget(QWidget):
     """获取指定股票财务报表的界面"""
@@ -593,7 +666,7 @@ class MainWindow(QWidget):
         self.sel = QListWidget()
         self.sel.setMaximumWidth(150)
         self.sel.setObjectName("sel")
-        func_list = ["自选股","定期报告", "公告资讯", "财务数据"]
+        func_list = ["自选股","定期报告", "公告资讯", "财务数据", "研究报告"]
         for item in func_list:
             list_item = QListWidgetItem()
             list_item.setText(item)
@@ -606,6 +679,7 @@ class MainWindow(QWidget):
             "DownloadReport": DownloadReportWidget(),
             "LatestAnnouncement": LatestAnnouncementWidget(),
             "FinancialStatement": FinancialStatementWidget(),
+            "StudyReport": StudyReportWidget()
         }
         self.stack = QStackedLayout()
         for _, widget in self.pages.items():

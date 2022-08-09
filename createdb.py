@@ -52,8 +52,7 @@ class AnnouncementDatabase:
             CREATE TABLE IF NOT EXISTS stocks (
                 code VARCHAR(6) PRIMARY KEY UNIQUE NOT NULL,
                 name NVARCHAR(10) NOT NULL,
-                category NVARCHAR(5));
-        """)
+                category NVARCHAR(5));""")
 
     def create_study_report_table(self):
         """
@@ -80,8 +79,7 @@ class AnnouncementDatabase:
                 em_rating_name NVARCHAR(10),
                 last_rating_value INT,
                 last_rating_name NVARCHAR(10),
-                authors NTEXT);
-        """)
+                authors NTEXT);""")
 
     def insert_announcement(self, ann_id, code, name, title, ann_date, url, state, reverse=True):
         """
@@ -151,7 +149,43 @@ class AnnouncementDatabase:
         self.query.addBindValue(authors)
         self.query.exec()
 
+    
+    def query_study_reports(self, reverse=True):
+        """query study reports"""
+        study_reports = []
+        if reverse:
+            self.query.exec("""
+                SELECT * FROM study_reports
+                ORDER BY publish_date DESC;""")
+        else:
+            self.query.exec("""
+                SELECT * FROM study_reports
+                ORDER BY publish_date DESC;""")
 
+        while self.query.next():
+            report = {
+                "InfoCode": str(self.query.value(0)),
+                "Title": str(self.query.value(1)),
+                "StockCode": str(self.query.value(2)),
+                "StockName": str(self.query.value(3)),
+                "OrgShortName": str(self.query.value(4)),
+                "PublishDate": str(self.query.value(5)),
+                "PredictNextTwoYearsEps": str(self.query.value(6)),
+                "PredictNextTwoYearsPe": str(self.query.value(7)),
+                "PredictNextYearEps": str(self.query.value(8)),
+                "PredictNextYearPe": str(self.query.value(9)),
+                "PredictThisYearEps": str(self.query.value(10)),
+                "PredictThisYearPe": str(self.query.value(11)),
+                "PredictLastYearEps": str(self.query.value(12)),
+                "PredictLastYearPe": str(self.query.value(13)),
+                "IndustryName": str(self.query.value(14)),
+                "EmRatingValue": str(self.query.value(15)),
+                "EmRatingName": str(self.query.value(16)),
+                "LastRatingValue": str(self.query.value(17)),
+                "LastRatingName": str(self.query.value(18)),
+                "Authors": str(self.query.value(19))}
+            study_reports.append(report)
+        return study_reports
 
 
     def delete_stock(self, code):

@@ -286,12 +286,17 @@ def get_study_reports(code: str) -> list:
     code: 个股代码，A股为6位数字的字符串
     return: 个股研报的列表，每个元素为字典，代表一个研报
     """
-    url = f"https://data.eastmoney.com/report/{code}.html"
-    res_obj = requests.get(url)
-    res_obj.encoding = "utf-8"
-    json_str = re.search("initdata = (.*);", res_obj.text).group(1)
-    json_obj = json.loads(json_str)
-    return json_obj["data"]
+    res = []
+    if len(code) == 6:
+        url = f"https://data.eastmoney.com/report/{code}.html"
+        res_obj = requests.get(url)
+        res_obj.encoding = "utf-8"
+        search_res = re.search("initdata = (.*);", res_obj.text)
+        print(search_res)
+        json_str = search_res.group(1)
+        json_obj = json.loads(json_str)
+        res = json_obj["data"]
+    return res
 
 
 if __name__ == "__main__":
