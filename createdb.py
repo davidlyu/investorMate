@@ -122,8 +122,8 @@ class AnnouncementDatabase:
                 predict_n2y_eps, predict_n2y_pe, predict_ny_eps, predict_ny_pe, 
                 predict_ty_eps, predict_ty_pe, predict_ly_eps, predict_ly_pe, 
                 industry_name, em_rating_value, em_rating_name, last_rating_value, 
-                last_rating_name, authors)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                last_rating_name, authors, url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         self.query.prepare(sql)
         self.query.addBindValue(report_obj["infoCode"])
@@ -147,6 +147,7 @@ class AnnouncementDatabase:
         self.query.addBindValue(report_obj["lastEmRatingName"])
         authors = ",".join([author.split(".")[1] for author in report_obj["author"]])
         self.query.addBindValue(authors)
+        self.query.addBindValue(report_obj["pdfUrl"])
         self.query.exec()
 
     
@@ -183,7 +184,8 @@ class AnnouncementDatabase:
                 "EmRatingName": str(self.query.value(16)),
                 "LastRatingValue": str(self.query.value(17)),
                 "LastRatingName": str(self.query.value(18)),
-                "Authors": str(self.query.value(19))}
+                "Authors": str(self.query.value(19)),
+                "PdfUrl": str(self.query.value(20))}
             study_reports.append(report)
         return study_reports
 

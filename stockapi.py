@@ -296,6 +296,10 @@ def get_study_reports(code: str) -> list:
         json_str = search_res.group(1)
         json_obj = json.loads(json_str)
         res = json_obj["data"]
+
+        for report_obj in res:
+            pdf_url = f"https://pdf.dfcfw.com/pdf/H3_{report_obj['infoCode']}_1.pdf"
+            report_obj["pdfUrl"] = pdf_url
     return res
 
 

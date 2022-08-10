@@ -460,7 +460,7 @@ class StudyReportWidget(QWidget):
     def initializeUI(self):
         """initialize ui"""
         self.setUpMainWindow()
-        # self.create_actions()
+        self.create_actions()
 
     def setUpMainWindow(self):
         """set up main window"""
@@ -523,6 +523,24 @@ class StudyReportWidget(QWidget):
             announcement_db.insert_study_report(report_obj)
         
         self.display_reports()
+
+    def create_actions(self):
+        """add actions in the context menu"""
+        self.open_act = QAction("打开", self)
+        self.open_act.triggered.connect(self.open)
+
+    def open(self):
+        row = self.report_table.currentRow()
+        url = self.all_study_reports[row]["PdfUrl"]
+        print(f"open {url}")
+        webbrowser.open(url)
+
+    def contextMenuEvent(self, event):
+        context_menu = QMenu(self)
+
+        context_menu.addAction(self.open_act)
+
+        action = context_menu.exec(self.mapToGlobal(event.pos()))
 
 class FinancialStatementWidget(QWidget):
     """获取指定股票财务报表的界面"""
@@ -601,7 +619,6 @@ class FinancialStatementWidget(QWidget):
             for j, item in enumerate(line[1:]):
                 item_obj = QTableWidgetItem(item)
                 self.financial_table.setItem(i, j, item_obj)
-
 
 class MainWindow(QWidget):
     "股票投资助手程序的主界面"
