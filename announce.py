@@ -358,10 +358,10 @@ class LatestAnnouncementWidget(QWidget):
                 self.announcements_table.setItem(i, 2, QTableWidgetItem(ann_date))
                 if ann["AnnouncementState"] == "UNREAD":
                     font.setBold(True)
-                    self.announcements_table.item(i, 0).setFont(font)
+                    self.announcements_table.item(i, 1).setFont(font)
                 elif ann["AnnouncementState"] == "READ":
                     font.setBold(False)
-                    self.announcements_table.item(i, 0).setFont(font)
+                    self.announcements_table.item(i, 1).setFont(font)
 
     def refresh_announcements(self):
         """从网站抓取数据，并更新数据库"""
@@ -405,7 +405,7 @@ class LatestAnnouncementWidget(QWidget):
             announcement_db.update_announcement_state(int(ann_id), state)
             font = self.announcements_table.font()
             font.setBold(False)
-            self.announcements_table.item(row, 0).setFont(font)
+            self.announcements_table.item(row, 1).setFont(font)
 
     def unread(self):
         # 首先获取被选中的行号列表，并去重
@@ -418,7 +418,7 @@ class LatestAnnouncementWidget(QWidget):
             announcement_db.update_announcement_state(int(ann_id), state)
             font = self.announcements_table.font()
             font.setBold(True)
-            self.announcements_table.item(row, 0).setFont(font)
+            self.announcements_table.item(row, 1).setFont(font)
 
     def delete(self):
         rows = [item.row() for item in self.announcements_table.selectedItems()]
