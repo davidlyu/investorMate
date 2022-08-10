@@ -506,6 +506,7 @@ class StudyReportWidget(QWidget):
         self.report_table.setRowCount(len(self.all_study_reports))
         for i, report in enumerate(self.all_study_reports):
             num_item = QTableWidgetItem(f"{i+1}")
+            report["Title"] = report["StockName"] + "：" + report["Title"]
             self.report_table.setItem(i, 0, num_item)
 
             headers = ["Title", "EmRatingName", "Authors", "OrgShortName", "PublishDate"]
