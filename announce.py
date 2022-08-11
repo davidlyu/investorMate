@@ -673,19 +673,27 @@ class MainWindow(QWidget):
         self.stock_search_widget.complete.connect(self.stock_search_complete)
 
         # 资讯三标签
-        self.announcement_label = QLabel("公告")
-        self.announcement_label.setVisible(False)
-        self.study_report_label = QLabel("研报")
-        self.study_report_label.setVisible(False)
-        self.news_label = QLabel("新闻")
-        self.news_label.setVisible(False)
+        self.announcement_btn = QPushButton("公告")
+        self.announcement_btn.setVisible(False)
+        self.announcement_btn.setCheckable(True)
+        self.announcement_btn.clicked.connect(self.announcement_btn_click)
+
+        self.study_report_btn = QPushButton("研报")
+        self.study_report_btn.setVisible(False)
+        self.study_report_btn.setCheckable(True)
+        self.study_report_btn.clicked.connect(self.study_report_btn_click)
+
+        self.news_btn = QPushButton("新闻")
+        self.news_btn.setVisible(False)
+        self.news_btn.setCheckable(True)
+        self.news_btn.clicked.connect(self.news_btn_click)
 
         # 标题栏布局
         title_bar_box.addWidget(title_label)
         title_bar_box.addWidget(self.stock_search_widget)
-        title_bar_box.addWidget(self.announcement_label)
-        title_bar_box.addWidget(self.study_report_label)
-        title_bar_box.addWidget(self.news_label)
+        title_bar_box.addWidget(self.announcement_btn)
+        title_bar_box.addWidget(self.study_report_btn)
+        title_bar_box.addWidget(self.news_btn)
 
         title_bar_box.addStretch()
         title_bar_box.addWidget(minimize_btn)
@@ -714,10 +722,10 @@ class MainWindow(QWidget):
         # =============== 右侧界面 ======================
         self.pages = {
             "SelectedStocks": SelectedStocksWidget(),
-            # "DownloadReport": DownloadReportWidget(),
+            "DownloadReport": DownloadReportWidget(),
             "LatestAnnouncement": LatestAnnouncementWidget(),
             "FinancialStatement": FinancialStatementWidget(),
-            # "StudyReport": StudyReportWidget()
+            "StudyReport": StudyReportWidget()
         }
         self.stack = QStackedLayout()
         for _, widget in self.pages.items():
@@ -757,13 +765,13 @@ class MainWindow(QWidget):
     def switch_page(self, row):
         """slot for switching between tabs"""
         if self.sel.currentItem().text() == "资讯":
-            self.announcement_label.setVisible(True)
-            self.study_report_label.setVisible(True)
-            self.news_label.setVisible(True)
+            self.announcement_btn.setVisible(True)
+            self.study_report_btn.setVisible(True)
+            self.news_btn.setVisible(True)
         else:
-            self.announcement_label.setVisible(False)
-            self.study_report_label.setVisible(False)
-            self.news_label.setVisible(False)
+            self.announcement_btn.setVisible(False)
+            self.study_report_btn.setVisible(False)
+            self.news_btn.setVisible(False)
 
         self.stack.setCurrentIndex(row)
         title = self.sel.currentItem().text()
@@ -797,6 +805,26 @@ class MainWindow(QWidget):
 
     def update_progress_label(self, progress_str):
         self.progress_label.setText(progress_str)
+
+    def announcement_btn_click(self):
+        if self.sel.currentItem().text() == "资讯":
+            self.announcement_btn.setChecked(True)
+            self.study_report_btn.setChecked(False)
+            self.news_btn.setChecked(False)
+            self.stack.setCurrentWidget(self.pages["LatestAnnouncement"])
+
+    def study_report_btn_click(self):
+        if self.sel.currentItem().text() == "资讯":
+            self.announcement_btn.setChecked(False)
+            self.study_report_btn.setChecked(True)
+            self.news_btn.setChecked(False)
+            self.stack.setCurrentWidget(self.pages["StudyReport"])
+
+    def news_btn_click(self):
+        if self.sel.currentItem().text() == "资讯":
+            self.announcement_btn.setChecked(False)
+            self.study_report_btn.setChecked(False)
+            self.news_btn.setChecked(True)
 
     def closeEvent(self, event):
         sys.exit(app.exec())
