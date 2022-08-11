@@ -1,6 +1,6 @@
-*{
+/* *{
     border: 1px solid gray;
-}
+} */
 
 QWidget#MainWindow{
     padding-top: 0px;
@@ -25,6 +25,7 @@ QProgressBar::chunk{
 QLabel#TitleLabel{
     color: #e4e4e4;
     font-size: 16px;
+    padding: 0px;
     border: 0px;
 }
 

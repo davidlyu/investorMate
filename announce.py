@@ -650,23 +650,43 @@ class MainWindow(QWidget):
         # ============ 标题栏 ===================
         title_bar_box = QHBoxLayout()
         title_bar_box.setContentsMargins(0, 0, 0, 0)
+
+        # window title
         title_label = QLabel(" 股票投资助手")
         title_label.setObjectName("TitleLabel")
 
+        # 最小化按钮
         minimize_btn = QPushButton("")
         minimize_btn.setObjectName("MinimizeButton")
 
+        # 最大化按钮
         maximize_btn = QPushButton("")
         maximize_btn.setObjectName("MaximizeButton")
 
+        # 关闭按钮
         close_btn = QPushButton("")
         close_btn.setObjectName("CloseButton")
 
+        # 股票搜索框
         self.stock_search_widget = StockSearchWidget()
         self.stock_search_widget.setFixedWidth(250)
         self.stock_search_widget.complete.connect(self.stock_search_complete)
+
+        # 资讯三标签
+        self.announcement_label = QLabel("公告")
+        self.announcement_label.setVisible(False)
+        self.study_report_label = QLabel("研报")
+        self.study_report_label.setVisible(False)
+        self.news_label = QLabel("新闻")
+        self.news_label.setVisible(False)
+
+        # 标题栏布局
         title_bar_box.addWidget(title_label)
         title_bar_box.addWidget(self.stock_search_widget)
+        title_bar_box.addWidget(self.announcement_label)
+        title_bar_box.addWidget(self.study_report_label)
+        title_bar_box.addWidget(self.news_label)
+
         title_bar_box.addStretch()
         title_bar_box.addWidget(minimize_btn)
         title_bar_box.addWidget(maximize_btn)
@@ -684,7 +704,7 @@ class MainWindow(QWidget):
         self.sel = QListWidget()
         self.sel.setMaximumWidth(150)
         self.sel.setObjectName("sel")
-        func_list = ["自选股","定期报告", "公告资讯", "财务数据", "研究报告"]
+        func_list = ["自选","资讯", "财务"]
         for item in func_list:
             list_item = QListWidgetItem()
             list_item.setText(item)
@@ -694,10 +714,10 @@ class MainWindow(QWidget):
         # =============== 右侧界面 ======================
         self.pages = {
             "SelectedStocks": SelectedStocksWidget(),
-            "DownloadReport": DownloadReportWidget(),
+            # "DownloadReport": DownloadReportWidget(),
             "LatestAnnouncement": LatestAnnouncementWidget(),
             "FinancialStatement": FinancialStatementWidget(),
-            "StudyReport": StudyReportWidget()
+            # "StudyReport": StudyReportWidget()
         }
         self.stack = QStackedLayout()
         for _, widget in self.pages.items():
@@ -736,6 +756,15 @@ class MainWindow(QWidget):
 
     def switch_page(self, row):
         """slot for switching between tabs"""
+        if self.sel.currentItem().text() == "资讯":
+            self.announcement_label.setVisible(True)
+            self.study_report_label.setVisible(True)
+            self.news_label.setVisible(True)
+        else:
+            self.announcement_label.setVisible(False)
+            self.study_report_label.setVisible(False)
+            self.news_label.setVisible(False)
+
         self.stack.setCurrentIndex(row)
         title = self.sel.currentItem().text()
         self.setWindowTitle(f"股票投资助手 - {title}")
