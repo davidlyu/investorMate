@@ -776,7 +776,9 @@ class MainWindow(QWidget):
             if len(self.tab_btns) == 0:
                 for item in self.pages_obj[row]["PageWidget"]:
                     btn = QPushButton(item["Title"])
+                    btn.setObjectName("TabButton")
                     btn.setCheckable(True)
+                    btn.setCursor(Qt.CursorShape.PointingHandCursor)
                     btn.clicked.connect(self.tab_btn_click)
                     self.tab_btn_box.addWidget(btn)
                     self.tab_btns.append(btn)

@@ -80,3 +80,30 @@ QLineEdit{
     color: #ae6b60;
     border: 1px;
 }
+
+QPushButton#TabButton{
+    height: 30px;
+    width: 60px;
+    background-color: #c52f2f;
+    border: 0px;
+    font-size: 16px;
+    color: #e4e4e4;
+}
+
+QPushButton#TabButton:hover{
+    height: 30px;
+    width: 60px;
+    background-color: #dc6f6f;
+    border: 0px;
+    font-size: 16px;
+    color: #e4e4e4;
+}
+
+QPushButton#TabButton:checked{
+    height: 28px;
+    width: 60px;
+    background-color: #c52f2f;
+    font-size: 16px;
+    color: #e4e4e4;
+    border-bottom: 2px solid greenyellow;
+}
