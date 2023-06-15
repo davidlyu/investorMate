@@ -26,23 +26,6 @@ from test import StockSearchWidget
 # 参数
 STOCK_UPDATE_INTERVAL = 10
 
-# 导入 QSS 函数
-def load_style_from_qss(f):
-    """
-    从 qss 文件导入样式
-    参数：
-        f - qss 文件名
-    返回：
-        样式字符串
-    """
-    file_obj = open(f)
-    lines = file_obj.readlines()
-    file_obj.close()
-    res = ''
-    for line in lines:
-        res += line
-    return res
-
 
 announcement_db = createdb.AnnouncementDatabase()
 
@@ -630,10 +613,10 @@ class MainWindow(QWidget):
 
     def initializeUI(self):
         self.setMinimumSize(1200, 800)
-        self.setWindowTitle("股票公告下载")
+        self.setWindowTitle("股票投资助手")
 
         # 删除系统自带标题栏
-        self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
+        # self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
         # self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setObjectName("MainWindow")
 
@@ -677,14 +660,11 @@ class MainWindow(QWidget):
         self.tab_btns = []
 
         # 标题栏布局
-        title_bar_box.addWidget(title_label)
+        # title_bar_box.addWidget(title_label)
         title_bar_box.addWidget(self.stock_search_widget)
         title_bar_box.addLayout(self.tab_btn_box)
 
         title_bar_box.addStretch()
-        title_bar_box.addWidget(minimize_btn)
-        title_bar_box.addWidget(maximize_btn)
-        title_bar_box.addWidget(close_btn)
 
         title_bar_widget = QWidget()
         title_bar_widget.setObjectName("TitleBar")
@@ -789,14 +769,14 @@ class MainWindow(QWidget):
                     if btn.isChecked():
                         btn.click()
 
-    def download_announcements(self):
-        """下载公告pdf文件"""
-        directory = self.chooseDirectory()
-        worker = DownloadWorker(self.response_obj["announcements"], directory)
-        worker.update_value_signal.connect(self.updateProgressBar)
-        worker.update_str_signal.connect(self.update_progress_label)
-        worker.run()
-        self.stop_button.setEnabled(False)
+    # def download_announcements(self):
+    #     """下载公告pdf文件"""
+    #     directory = self.chooseDirectory()
+    #     worker = DownloadWorker(self.response_obj["announcements"], directory)
+    #     worker.update_value_signal.connect(self.updateProgressBar)
+    #     worker.update_str_signal.connect(self.update_progress_label)
+    #     worker.run()
+    #     self.stop_button.setEnabled(False)
 
     def chooseDirectory(self):
         """Choose file directory."""
@@ -812,26 +792,27 @@ class MainWindow(QWidget):
         self.combo_value = text
         print(self.combo_value)
 
-    def updateProgressBar(self, value):
-        self.progress_bar.setValue(value)
+    # def updateProgressBar(self, value):
+    #     self.progress_bar.setValue(value)
 
-    def update_progress_label(self, progress_str):
-        self.progress_label.setText(progress_str)
+    # def update_progress_label(self, progress_str):
+    #     self.progress_label.setText(progress_str)
 
     def tab_btn_click(self):
-        for btn in self.tab_btns:
-            if btn is self.sender():
-                text = btn.text()
-                if not btn.isChecked():
-                    btn.setChecked(True)
-            else:
-                btn.setChecked(False)
+        pass
+    #     for btn in self.tab_btns:
+    #         if btn is self.sender():
+    #             text = btn.text()
+    #             if not btn.isChecked():
+    #                 btn.setChecked(True)
+    #         else:
+    #             btn.setChecked(False)
 
-        for item in self.pages_obj:
-            if isinstance(item["PageWidget"], list):
-                for page in item["PageWidget"]:
-                    if page["Title"] == text:
-                        self.stack.setCurrentWidget(page["PageWidget"])
+    #     for item in self.pages_obj:
+    #         if isinstance(item["PageWidget"], list):
+    #             for page in item["PageWidget"]:
+    #                 if page["Title"] == text:
+    #                     self.stack.setCurrentWidget(page["PageWidget"])
 
 
     def closeEvent(self, event):
@@ -859,7 +840,5 @@ class MainWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    style_sheet = load_style_from_qss("style.qss")
-    app.setStyleSheet(style_sheet)
     window = MainWindow()
     sys.exit(app.exec())
